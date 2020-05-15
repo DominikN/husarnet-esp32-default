@@ -46,7 +46,7 @@ WiFiMulti wifiMulti;
 StaticJsonDocument<100> jsonDocRx;  // {"set-output":"sine"}
 StaticJsonDocument<200> jsonDocTx;  // {"output-type":"sine", "timestamp":1000000000, "value":0.12345}
 
-String modeName = "square"; //"sine", "triangle", "none"
+String modeName = "sine"; //"square", "triangle", "none"
 
 const char* html =
 #include "html.h"
@@ -185,7 +185,6 @@ void taskWifi( void * parameter ) {
 
 void taskStatus( void * parameter )
 {
-  String output;
   time_t currentTime;
   uint8_t cnt = 0;
 
@@ -195,6 +194,7 @@ void taskStatus( void * parameter )
 
       //{"output-type":"sine", "timestamp-ms":1000000000, "value":0.12345}
       if (getTime(currentTime)) {
+        String output;
         jsonDocTx["output-type"] = modeName;
         jsonDocTx["timestamp"] = currentTime;
         jsonDocTx["value"] = getLutVal(modeName);
@@ -207,7 +207,7 @@ void taskStatus( void * parameter )
         webSocket.sendTXT(0, output);
       }
     }
-    delay(100);
+    delay(200);
   }
 }
 
