@@ -1,14 +1,16 @@
 #include <WiFi.h>
-#include <WebSocketsServer.h>
+#include <WiFiMulti.h>
 #include <Husarnet.h>
+#include <WebSocketsServer.h>
+#include <WebServer.h>
 #include <ArduinoJson.h>
+
+#include "time.h"
+#include "lut.h"
 
 /* =============== config section start =============== */
 #define HTTP_PORT 8000
 #define WEBSOCKET_PORT 8001
-
-const int BUTTON_PIN = 22;
-const int LED_PIN = 16;
 
 #if __has_include("credentials.h")
 #include "credentials.h"
@@ -26,24 +28,42 @@ const char* passwordTab[NUM_NETWORKS] = {
 };
 
 // Husarnet credentials
-const char* hostName = "esp32websocket";  
+const char* hostName = "esp32websocket";
 const char* husarnetJoinCode = "fc94:b01d:1803:8dd8:b293:5c7d:7639:932a/xxxxxxxxxxxxxxxxxxxxxx";
 
 #endif
 /* =============== config section end =============== */
 
+const char* ntpServer = "pool.ntp.org";
+const long  gmtOffset_sec = 3600;
+const int   daylightOffset_sec = 3600;
 
+WebServer server(HTTP_PORT);
 WebSocketsServer webSocket = WebSocketsServer(WEBSOCKET_PORT);
-HusarnetServer server(HTTP_PORT);
+WiFiMulti wifiMulti;
 
-StaticJsonDocument<400> jsonBufferTx;
-StaticJsonDocument<400> jsonBufferRx;
+//https://arduinojson.org/v5/assistant/
+StaticJsonDocument<100> jsonDocRx;  // {"set-output":"sine"}
+StaticJsonDocument<200> jsonDocTx;  // {"output-type":"sine", "timestamp":1000000000, "value":0.12345}
+
+String modeName = "square"; //"sine", "triangle", "none"
 
 const char* html =
 #include "html.h"
   ;
 
 bool wsconnected = false;
+
+bool getTime(time_t& rawtime) {
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    Serial.println("Failed to obtain time");
+    return 0;
+  } else {
+    rawtime = mktime(&timeinfo);
+    return 1;
+  }
+}
 
 void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
   switch (type) {
@@ -62,23 +82,18 @@ void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t lengt
 
     case WStype_TEXT:
       {
-        Serial.printf("[%u] Text:\r\n", num);
-        for (int i = 0; i < length; i++) {
-          Serial.printf("%c", (char)(*(payload + i)));
-        }
-        Serial.println();
+        Serial.printf("[%u] Text: %s\r\n", num, (char*)payload);
 
-        jsonBufferRx.clear();
-        auto error = deserializeJson(jsonBufferRx, payload);
+        jsonDocRx.clear();
+        auto error = deserializeJson(jsonDocRx, payload);
 
-        uint8_t ledState = jsonBufferRx["led"];
-
-        Serial.printf("LED state = %d\r\n", ledState);
-        if (ledState == 1) {
-          digitalWrite(LED_PIN, HIGH);
-        }
-        if (ledState == 0) {
-          digitalWrite(LED_PIN, LOW);
+        if (!error) {
+          if (jsonDocRx["set-output"]) {
+            String output = jsonDocRx["set-output"];
+            if ( (output == "sine") || (output == "triangle") || (output == "square") || (output == "none")) {
+              modeName = output;
+            }
+          }
         }
       }
       break;
@@ -92,43 +107,25 @@ void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t lengt
     default:
       break;
   }
-
 }
 
 void taskWifi( void * parameter );
-void taskHTTP( void * parameter );
-void taskWebSocket( void * parameter );
 void taskStatus( void * parameter );
+
+void onHttpReqFunc() {
+  Serial.printf("HTTP_GET / [size %d B] [RAM: %d]\r\n", strlen(html), esp_get_free_heap_size());
+  server.sendHeader("Connection", "close");
+  server.send(200, "text/html", html);
+}
 
 void setup()
 {
   Serial.begin(115200);
 
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
-
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, LOW);
-
   xTaskCreate(
     taskWifi,          /* Task function. */
     "taskWifi",        /* String with name of task. */
-    10000,            /* Stack size in bytes. */
-    NULL,             /* Parameter passed as input of the task */
-    1,                /* Priority of the task. */
-    NULL);            /* Task handle. */
-
-  xTaskCreate(
-    taskHTTP,          /* Task function. */
-    "taskHTTP",        /* String with name of task. */
-    10000,            /* Stack size in bytes. */
-    NULL,             /* Parameter passed as input of the task */
-    2,                /* Priority of the task. */
-    NULL);            /* Task handle. */
-
-  xTaskCreate(
-    taskWebSocket,          /* Task function. */
-    "taskWebSocket",        /* String with name of task. */
-    10000,            /* Stack size in bytes. */
+    20000,            /* Stack size in bytes. */
     NULL,             /* Parameter passed as input of the task */
     1,                /* Priority of the task. */
     NULL);            /* Task handle. */
@@ -136,130 +133,79 @@ void setup()
   xTaskCreate(
     taskStatus,          /* Task function. */
     "taskStatus",        /* String with name of task. */
-    10000,            /* Stack size in bytes. */
+    20000,            /* Stack size in bytes. */
     NULL,             /* Parameter passed as input of the task */
     1,                /* Priority of the task. */
     NULL);            /* Task handle. */
 }
 
 void taskWifi( void * parameter ) {
-  while (1) {
-    for (int i = 0; i < NUM_NETWORKS; i++) {
-      Serial.println();
-      Serial.print("Connecting to ");
-      Serial.print(ssidTab[i]);
-      WiFi.begin(ssidTab[i], passwordTab[i]);
-      for (int j = 0; j < 10; j++) {
-        if (WiFi.status() != WL_CONNECTED) {
-          delay(500);
-          Serial.print(".");
-        } else {
-          Serial.println("done");
-          Serial.print("IP address: ");
-          Serial.println(WiFi.localIP());
+  uint8_t stat = WL_DISCONNECTED;
+  int h, m;
 
-          Husarnet.join(husarnetJoinCode, hostName);
-          Husarnet.start();
-
-          server.begin();
-
-          while (WiFi.status() == WL_CONNECTED) {
-            delay(500);
-          }
-        }
-      }
-    }
+  /* Add Wi-Fi network credentials */
+  for (int i = 0; i < NUM_NETWORKS; i++) {
+    wifiMulti.addAP(ssidTab[i], passwordTab[i]);
+    Serial.printf("WiFi %d: SSID: \"%s\" ; PASS: \"%s\"\r\n", i, ssidTab[i], passwordTab[i]);
   }
-}
 
-void taskHTTP( void * parameter )
-{
-  String header;
-
-  while (1) {
-    while (WiFi.status() != WL_CONNECTED) {
-      delay(500);
-    }
-
-    HusarnetClient client = server.available();
-
-    if (client) {
-      Serial.println("New Client.");
-      String currentLine = "";
-      Serial.printf("connected: %d\r\n", client.connected());
-      while (client.connected()) {
-
-        if (client.available()) {
-          char c = client.read();
-          Serial.write(c);
-          header += c;
-          if (c == '\n') {
-            if (currentLine.length() == 0) {
-              client.println("HTTP/1.1 200 OK");
-              client.println("Content-type:text/html");
-              client.println("Connection: close");
-              client.println();
-
-              client.println(html);
-              break;
-            } else {
-              currentLine = "";
-            }
-          } else if (c != '\r') {
-            currentLine += c;
-          }
-        }
-      }
-
-      header = "";
-
-      client.stop();
-      Serial.println("Client disconnected.");
-      Serial.println("");
-    } else {
-      delay(200);
-    }
+  while (stat != WL_CONNECTED) {
+    stat = wifiMulti.run();
+    Serial.printf("WiFi status: %d\r\n", (int)stat);
+    delay(100);
   }
-}
+  Serial.printf("WiFi connected\r\n", (int)stat);
+  Serial.printf("IP address: ");
+  Serial.println(WiFi.localIP());
 
-void taskWebSocket( void * parameter )
-{
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-  }
+  Husarnet.join(husarnetJoinCode, hostName);
+  Husarnet.start();
+
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer); //todo: move after wifi initialization
 
   webSocket.begin();
   webSocket.onEvent(onWebSocketEvent);
 
+  server.on("/", HTTP_GET, onHttpReqFunc);
+  server.on("/index.html", HTTP_GET, onHttpReqFunc);
+  server.begin();
+
   while (1) {
-    webSocket.loop();
-    delay(1);
+    while (WiFi.status() == WL_CONNECTED) {
+      webSocket.loop();
+      server.handleClient();
+      delay(10);
+    }
+    Serial.printf("WiFi disconnected, reconnecting\r\n");
+    stat = wifiMulti.run();
+    Serial.printf("WiFi status: %d\r\n", (int)stat);
+    delay(500);
   }
 }
 
 void taskStatus( void * parameter )
 {
   String output;
-  int cnt = 0;
-  uint8_t button_status = 0;
+  time_t currentTime;
+  uint8_t cnt = 0;
+
   while (1) {
     if (wsconnected == true) {
-      if (digitalRead(BUTTON_PIN) == LOW) {
-        button_status = 1;
-      } else {
-        button_status = 0;
+      jsonDocTx.clear();
+
+      //{"output-type":"sine", "timestamp-ms":1000000000, "value":0.12345}
+      if (getTime(currentTime)) {
+        jsonDocTx["output-type"] = modeName;
+        jsonDocTx["timestamp"] = currentTime;
+        jsonDocTx["value"] = getLutVal(modeName);
+        serializeJson(jsonDocTx, output);
+
+        Serial.print(F("Sending: "));
+        Serial.print(output);
+        Serial.println();
+
+        webSocket.sendTXT(0, output);
       }
-      output = "";
-
-      jsonBufferTx["counter"] = cnt++;
-      jsonBufferTx["button"] = button_status;
-      serializeJson(jsonBufferTx, output);
-
-      Serial.print(F("Sending: "));
-      Serial.print(output);
-      Serial.println();
-
-      webSocket.sendTXT(0, output);
     }
     delay(100);
   }

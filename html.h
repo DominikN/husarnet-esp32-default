@@ -33,13 +33,12 @@ R"rawText(
       function WebSocketBegin() {
         if ("WebSocket" in window) {
           // Let us open a web socket
-			ws = new WebSocket(
-				location.hostname.match(/\.husarnetusers\.com$/) ? "wss://" + location.hostname + "/__port_8001/" : "ws://" + location.hostname + ":8001/"
-            );
-          //ws = new WebSocket(
-          //  "wss://fc94f91f5992989f83474cc8abf7329b-8001.husarnetusers.com"
-          //);
-
+//			    ws = new WebSocket(
+//				    location.hostname.match(/\.husarnetusers\.com$/) ? "wss://" + location.hostname + "/__port_8001/" : "ws://" + location.hostname + ":8001/"
+//            );
+          ws = new WebSocket(
+            "wss://fc947aa01226481b1087d52fd63ab391-8001.husarnetusers.com"
+          );
           ws.onopen = function() {
             // Web Socket is connected
           };
