@@ -70,7 +70,7 @@ R"rawText(
               <p class="card-text">
                 last 100 values received over websocket on port 8001
               </p>
-              <canvas id="myCanvas" width="400" height="150"></canvas>
+              <canvas id="myCanvas" width="400" height="100"></canvas>
             </div>
           </div>
         </div>
