@@ -54,6 +54,10 @@ const char* html =
 #include "html.h"
   ;
 
+const char* default_js =
+#include "default_js.h"
+  ;
+
 bool getTime(time_t& rawtime) {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
@@ -168,6 +172,12 @@ void taskWifi( void * parameter ) {
 
   server.on("/", HTTP_GET, onHttpReqFunc);
   server.on("/index.html", HTTP_GET, onHttpReqFunc);
+  server.on("/default.js", HTTP_GET, []() {
+    server.sendHeader("Connection", "close");
+    server.send(200, "application/javascript", default_js);
+    xSemaphoreGive( sem );
+  });
+
   server.begin();
 
   xSemaphoreGive( sem );
