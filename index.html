@@ -43,23 +43,12 @@
               <p id="lastTimestamp">
                 -
               </p>
-            </div>
-          </div>
-        </div>
-        <div class="col">
-          <div class="card bg-light m-2" style="min-height: 15rem;">
-            <div class="card-header">Input 2</div>
-            <div class="card-body">
-              <h5 class="card-title">Chart</h5>
-              <p class="card-text">
-                last 60 values received over websocket
+              <p id="lastWaveform">
+                -
               </p>
-              <canvas id="myCanvas" width="400" height="400"></canvas>
             </div>
           </div>
         </div>
-      </div>
-      <div class="row">
         <div class="col">
           <div class="card bg-light m-2">
             <div class="card-header">Output</div>
@@ -74,6 +63,22 @@
                 <input type="radio" id="radio-triangle" name="option">triangle<br>
                 <input type="radio" id="radio-none" name="option">none<br>
               </form>
+            </div>
+          </div>
+
+
+        </div>
+      </div>
+      <div class="row">
+        <div class="col">
+          <div class="card bg-light m-2" style="min-height: 15rem;">
+            <div class="card-header">Input 2</div>
+            <div class="card-body">
+              <h5 class="card-title">Chart</h5>
+              <p class="card-text">
+                last 60 values received over websocket
+              </p>
+              <canvas id="myCanvas" width="400" height="200"></canvas>
             </div>
           </div>
         </div>

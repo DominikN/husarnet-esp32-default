@@ -53,7 +53,7 @@ function WebSocketBegin() {
 
             //create a JSON object
             var jsonObject = JSON.parse(evt.data);
-            //var type = jsonObject.output_type;
+            var type = jsonObject.output_type;
             var timestamp = jsonObject.timestamp;
             var value = jsonObject.value;
 
@@ -63,13 +63,12 @@ function WebSocketBegin() {
             var seconds = "0" + date.getSeconds();
             var miliseconds = "0" + date.getMilliseconds();
 
-            document.getElementById("lastTimestamp").innerText = hours + ':' + minutes.substr(-2) + ':' + seconds.substr(-2);
             document.getElementById("cnt").innerText = value;
+            document.getElementById("lastTimestamp").innerText = hours + ':' + minutes.substr(-2) + ':' + seconds.substr(-2);
+            document.getElementById("lastWaveform").innerText = type;
+            
 
-            // waveformChart.data.labels[cnt] = cnt;
-            // waveformChart.data.datasets[0].data[cnt] = value;
-
-            cnt = cnt + 1;
+            //display only last 100 samples
             if (cnt > 100) {
                 waveformChart.data.labels.push(cnt);
                 waveformChart.data.labels.splice(0, 1);
@@ -86,6 +85,7 @@ function WebSocketBegin() {
                 });
             }
             waveformChart.update();
+            cnt = cnt + 1;
         };
 
         ws.onclose = function () {

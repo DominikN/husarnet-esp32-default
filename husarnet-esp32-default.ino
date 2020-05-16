@@ -43,16 +43,16 @@ WebSocketsServer webSocket = WebSocketsServer(WEBSOCKET_PORT);
 WiFiMulti wifiMulti;
 
 //https://arduinojson.org/v5/assistant/
-StaticJsonDocument<100> jsonDocRx;  // {"set-output":"sine"}
-StaticJsonDocument<200> jsonDocTx;  // {"output-type":"sine", "timestamp":1000000000, "value":0.12345}
+StaticJsonDocument<100> jsonDocRx;  // {"set_output":"sine"}
+StaticJsonDocument<200> jsonDocTx;  // {"output_type":"sine", "timestamp":1000000000, "value":0.12345}
 
 String modeName = "sine"; //"square", "triangle", "none"
+
+SemaphoreHandle_t sem = NULL;
 
 const char* html =
 #include "html.h"
   ;
-
-bool wsconnected = false;
 
 bool getTime(time_t& rawtime) {
   struct tm timeinfo;
@@ -69,13 +69,11 @@ void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t lengt
   switch (type) {
     case WStype_DISCONNECTED:
       {
-        wsconnected = false;
         Serial.printf("[%u] Disconnected\r\n", num);
       }
       break;
     case WStype_CONNECTED:
       {
-        wsconnected = true;
         Serial.printf("\r\n[%u] Connection from Husarnet \r\n", num);
       }
       break;
@@ -88,8 +86,8 @@ void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t lengt
         auto error = deserializeJson(jsonDocRx, payload);
 
         if (!error) {
-          if (jsonDocRx["set-output"]) {
-            String output = jsonDocRx["set-output"];
+          if (jsonDocRx["set_output"]) {
+            String output = jsonDocRx["set_output"];
             if ( (output == "sine") || (output == "triangle") || (output == "square") || (output == "none")) {
               modeName = output;
             }
@@ -113,7 +111,7 @@ void taskWifi( void * parameter );
 void taskStatus( void * parameter );
 
 void onHttpReqFunc() {
-  Serial.printf("HTTP_GET / [size %d B] [RAM: %d]\r\n", strlen(html), esp_get_free_heap_size());
+  delay(100);
   server.sendHeader("Connection", "close");
   server.send(200, "text/html", html);
 }
@@ -121,6 +119,9 @@ void onHttpReqFunc() {
 void setup()
 {
   Serial.begin(115200);
+
+  sem = xSemaphoreCreateMutex();
+  xSemaphoreTake(sem, ( TickType_t)portMAX_DELAY);
 
   xTaskCreate(
     taskWifi,          /* Task function. */
@@ -141,7 +142,6 @@ void setup()
 
 void taskWifi( void * parameter ) {
   uint8_t stat = WL_DISCONNECTED;
-  int h, m;
 
   /* Add Wi-Fi network credentials */
   for (int i = 0; i < NUM_NETWORKS; i++) {
@@ -161,7 +161,7 @@ void taskWifi( void * parameter ) {
   Husarnet.join(husarnetJoinCode, hostName);
   Husarnet.start();
 
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer); //todo: move after wifi initialization
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
   webSocket.begin();
   webSocket.onEvent(onWebSocketEvent);
@@ -170,42 +170,46 @@ void taskWifi( void * parameter ) {
   server.on("/index.html", HTTP_GET, onHttpReqFunc);
   server.begin();
 
+  xSemaphoreGive( sem );
+
   while (1) {
     while (WiFi.status() == WL_CONNECTED) {
-      webSocket.loop();
+      if (xSemaphoreTake(sem, ( TickType_t)0) == pdTRUE ) {
+        webSocket.loop();
+        xSemaphoreGive( sem );
+      }
+
       server.handleClient();
       delay(10);
     }
     Serial.printf("WiFi disconnected, reconnecting\r\n");
+    delay(500);
     stat = wifiMulti.run();
     Serial.printf("WiFi status: %d\r\n", (int)stat);
-    delay(500);
   }
 }
 
 void taskStatus( void * parameter )
 {
   time_t currentTime;
-  uint8_t cnt = 0;
 
   while (1) {
-    if (wsconnected == true) {
+    if (xSemaphoreTake(sem, ( TickType_t)portMAX_DELAY) == pdTRUE ) {
       jsonDocTx.clear();
-
-      //{"output-type":"sine", "timestamp-ms":1000000000, "value":0.12345}
       if (getTime(currentTime)) {
         String output;
-        jsonDocTx["output-type"] = modeName;
+        jsonDocTx["output_type"] = modeName;
         jsonDocTx["timestamp"] = currentTime;
         jsonDocTx["value"] = getLutVal(modeName);
         serializeJson(jsonDocTx, output);
 
-        Serial.print(F("Sending: "));
-        Serial.print(output);
-        Serial.println();
-
-        webSocket.sendTXT(0, output);
+        if (webSocket.sendTXT(0, output)) {
+          Serial.print(F("Sending: "));
+          Serial.print(output);
+          Serial.println();
+        }
       }
+      xSemaphoreGive( sem );
     }
     delay(200);
   }
@@ -213,5 +217,6 @@ void taskStatus( void * parameter )
 
 void loop()
 {
+  Serial.printf("[RAM: %d]\r\n", esp_get_free_heap_size());
   delay(5000);
 }
