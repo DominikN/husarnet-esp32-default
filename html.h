@@ -58,7 +58,7 @@ R"rawText(
               <p class="card-text">
                 that will be sent by ESP32 over websocket on port 8001
               </p>
-              <form onchange="radioChanged()" name="frmRadio" id="radio-buttons" action="">
+              <form onchange="radioChanged()" name="formRadio" id="radio-buttons" action="">
                 <input type="radio" id="radio-sine" name="option">sine<br>
                 <input type="radio" id="radio-square" name="option">square<br>
                 <input type="radio" id="radio-triangle" name="option">triangle<br>
