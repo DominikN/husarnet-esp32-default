@@ -13,15 +13,16 @@ R"rawText(
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
 
-  <title>ESP32 + Bootstrap + WebSocket + JSON + Husarnet</title>
+  <title>Husarnet ESP32 example project</title>
 </head>
 
 <body onLoad="javascript:WebSocketBegin()">
-  <header id="main-header" class="py-2 bg-success text-white">
+  <header id="main-header" class="py-2 text-white"
+    style="background-image:linear-gradient(56.72deg, #FB6060 16.14%, #EC305D 100.26%)">
     <div class="container">
       <div class="row justify-content-md-center">
-        <div class="col-md-6 text-center">
-          <h1><i class="fas fa-cog"></i> ESP32 control</h1>
+        <div class="col-md-8 text-center">
+          <h1>Husarnet <i class="fas fa-heart"></i> ESP32</h1>
         </div>
       </div>
     </div>
@@ -35,18 +36,10 @@ R"rawText(
             <div class="card-header">Input 1</div>
             <div class="card-body">
               <h5 class="card-title">Last Value</h5>
-              <p class="card-text">
-                A counter value is updated every 100ms by ESP32.
-              </p>
-              <p id="cnt" class="font-weight-bold">
-                0
-              </p>
-              <p id="lastTimestamp">
-                -
-              </p>
-              <p id="lastWaveform">
-                -
-              </p>
+              <p class="card-text"> Parsed from a last frame received over the websocket </p>
+              <p id="cnt" class="font-weight-bold">0</p>
+              <p id="lastTimestamp">-</p>
+              <p id="lastWaveform">-</p>
             </div>
           </div>
         </div>
@@ -58,16 +51,14 @@ R"rawText(
               <p class="card-text">
                 that will be sent by ESP32 over websocket on port 8001
               </p>
-              <form onchange="radioChanged()" name="formRadio" id="radio-buttons" action="">
-                <input type="radio" id="radio-sine" name="option">sine<br>
+              <form onchange="radioChanged()" name="formRadio" id="radio-buttons">
+                <input type="radio" id="radio-sine" name="option" checked>sine<br>
                 <input type="radio" id="radio-square" name="option">square<br>
                 <input type="radio" id="radio-triangle" name="option">triangle<br>
                 <input type="radio" id="radio-none" name="option">none<br>
               </form>
             </div>
           </div>
-
-
         </div>
       </div>
       <div class="row">
@@ -77,9 +68,9 @@ R"rawText(
             <div class="card-body">
               <h5 class="card-title">Chart</h5>
               <p class="card-text">
-                last 60 values received over websocket
+                last 100 values received over websocket on port 8001
               </p>
-              <canvas id="myCanvas" width="400" height="200"></canvas>
+              <canvas id="myCanvas" width="400" height="150"></canvas>
             </div>
           </div>
         </div>

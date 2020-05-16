@@ -38,16 +38,12 @@ var cnt = 0;
 
 function WebSocketBegin() {
     if ("WebSocket" in window) {
-        // Let us open a web socket
         ws = new WebSocket(
-        	location.hostname.match(/\.husarnetusers\.com$/) ? 
-			"wss://" + location.hostname + "/__port_8001/" 
-			: "ws://" + location.hostname + ":8001/"
+            location.hostname.match(/\.husarnetusers\.com$/) ? "wss://" + location.hostname + "/__port_8001/" : "ws://" + location.hostname + ":8001/"
         );
-        //ws = new WebSocket(
-        //"wss://fc947aa01226481b1087d52fd63ab391-8001.husarnetusers.com"
-        //"ws://esp32websocket:8001/"
-        //);
+        // ws = new WebSocket(
+        //     "ws://esp32websocket:8001/"
+        // );
         ws.onopen = function () {
             // Web Socket is connected
         };
@@ -69,7 +65,7 @@ function WebSocketBegin() {
             document.getElementById("cnt").innerText = value;
             document.getElementById("lastTimestamp").innerText = hours + ':' + minutes.substr(-2) + ':' + seconds.substr(-2);
             document.getElementById("lastWaveform").innerText = type;
-            
+
 
             //display only last 100 samples
             if (cnt > 100) {
@@ -103,16 +99,16 @@ function WebSocketBegin() {
 
 function radioChanged() {
     if (document.getElementById("radio-sine").checked) {
-        ws.send('{"set-output":"sine"}');
+        ws.send('{"set_output":"sine"}');
     }
     if (document.getElementById("radio-square").checked) {
-        ws.send('{"set-output":"square"}');
+        ws.send('{"set_output":"square"}');
     }
     if (document.getElementById("radio-triangle").checked) {
-        ws.send('{"set-output":"triangle"}');
+        ws.send('{"set_output":"triangle"}');
     }
     if (document.getElementById("radio-none").checked) {
-        ws.send('{"set-output":"none"}');
+        ws.send('{"set_output":"none"}');
     }
 }
 )rawText"
