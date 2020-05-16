@@ -197,7 +197,7 @@ void taskWifi( void * parameter ) {
         server.handleClient();
         xSemaphoreGive( sem );
       }
-      delay(10);
+      delay(2);
     }
 
     Serial.printf("WiFi disconnected, reconnecting\r\n");
