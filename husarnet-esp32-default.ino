@@ -28,7 +28,7 @@ const char* passwordTab[NUM_NETWORKS] = {
 };
 
 // Husarnet credentials
-const char* hostName = "esp32websocket";
+const char* hostName = "esp32basic";
 const char* husarnetJoinCode = "fc94:b01d:1803:8dd8:b293:5c7d:7639:932a/xxxxxxxxxxxxxxxxxxxxxx";
 
 #endif
@@ -51,7 +51,7 @@ WiFiMulti wifiMulti;
 // JSON documents
 //https://arduinojson.org/v5/assistant/
 StaticJsonDocument<100> jsonDocRx;  // {"set_output":"sine"}
-StaticJsonDocument<200> jsonDocTx;  // {"output_type":"sine", "timestamp":1000000000, "value":0.12345}
+StaticJsonDocument<200> jsonDocTx;  // {"timestamp":1000000000, "output_type":"sine", "value":129}
 
 // global variable to store a current waveform type to be sent over websocket
 String modeName = "sine"; //"square", "triangle", "none"
@@ -216,12 +216,12 @@ void taskStatus( void * parameter )
       jsonDocTx.clear();
       if (getTime(currentTime)) {
         String output;
-        jsonDocTx["output_type"] = modeName;
         jsonDocTx["timestamp"] = currentTime;
+        jsonDocTx["output_type"] = modeName;
         jsonDocTx["value"] = getLutVal(modeName);
         serializeJson(jsonDocTx, output);
 
-        // if websocket connection is opened send JSON like {"output_type":"sine", "timestamp":1000000000, "value":129}
+        // if websocket connection is opened send JSON like {"timestamp":1000000000, "output_type":"sine", "value":129}
         if (webSocket.sendTXT(0, output)) {
           xSemaphoreGive( sem );
           Serial.print(F("Sending: "));
