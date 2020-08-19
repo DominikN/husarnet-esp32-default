@@ -168,14 +168,14 @@ void taskWifi( void * parameter ) {
   Serial.println(WiFi.localIP());
 
   /* Start Husarnet */
+  Husarnet.selfHostedSetup(dashboardURL);
   Husarnet.join(husarnetJoinCode, hostName);
   Husarnet.start();
 
   /* Configure connection to the NTP server (get accurate time for timestamps) */
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
-  /* Start websocket server */
-  Husarnet.selfHostedSetup(dashboardURL);
+  /* Start websocket server */  
   webSocket.begin();
   webSocket.onEvent(onWebSocketEvent);
 
