@@ -30,6 +30,7 @@ const char* passwordTab[NUM_NETWORKS] = {
 // Husarnet credentials
 const char* hostName = "esp32basic";
 const char* husarnetJoinCode = "fc94:b01d:1803:8dd8:b293:5c7d:7639:932a/xxxxxxxxxxxxxxxxxxxxxx";
+const char* dashboardURL = "app.husarnet.com";
 
 #endif
 /* =============== config section end =============== */
@@ -174,6 +175,7 @@ void taskWifi( void * parameter ) {
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
   /* Start websocket server */
+  Husarnet.selfHostedSetup(dashboardURL);
   webSocket.begin();
   webSocket.onEvent(onWebSocketEvent);
 
